@@ -1,6 +1,6 @@
 use slab::Slab;
 use std::cell::RefCell;
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 
 #[derive(Default)]
 pub struct Graph {
@@ -45,6 +45,7 @@ impl Graph {
         let mut athunk = self.athunks.get(id.0).unwrap().borrow_mut();
         if athunk.clean {
             athunk.clean = false;
+            athunk.result.clear();
             for &s in athunk.super_computations.iter() {
                 self.dirty(s);
             }
@@ -82,7 +83,7 @@ pub struct AThunkID(usize);
 struct AThunk {
     id: AThunkID,
     thunk: Thunk,
-    result: Option<f64>,
+    result: HashMap<Vec<u64>, f64>,
     clean: bool,
     sub_computations: HashSet<AThunkID>,
     super_computations: HashSet<AThunkID>,
@@ -93,7 +94,7 @@ impl AThunk {
         Self {
             id,
             thunk,
-            result: None,
+            result: HashMap::new(),
             sub_computations: HashSet::new(),
             super_computations: HashSet::new(),
             clean: false,
@@ -101,9 +102,25 @@ impl AThunk {
     }
 
     fn compute(&mut self, g: &Graph, args: &[f64]) -> f64 {
-        if self.clean && self.result.is_some() {
-            return self.result.unwrap();
+        let key: Vec<u64> = args.iter().map(|&f| f as u64).collect();
+        let result = self.result.get(&key);
+        if self.clean {
+            if let Some(&r) = result {
+                return r;
+            }
         }
+
+        // Delete edge between self and sub_computations.
+        for s in self.sub_computations.iter() {
+            g.athunks
+                .get(s.0)
+                .unwrap()
+                .borrow_mut()
+                .super_computations
+                .remove(&self.id);
+        }
+        self.sub_computations.clear();
+
         self.clean = true;
         let result = (self.thunk)(&mut Handle {
             args,
@@ -111,8 +128,8 @@ impl AThunk {
             sub_computations: &mut self.sub_computations,
             graph: g,
         });
-        self.result = Some(result);
-        result
+        self.result.insert(key, result);
+        self.compute(g, args)
     }
 }
 
@@ -129,8 +146,8 @@ mod tests {
         let r3 = graph.new_aref(2.0);
 
         let a1 = graph.new_athunk(Box::new(move |h| {
-            h.add_edge(r1);
             h.add_edge(r2);
+            h.add_edge(r1);
             h.compute(r2, &[]).unwrap() - h.compute(r1, &[]).unwrap()
         }));
 
@@ -143,6 +160,7 @@ mod tests {
         let a3 = graph.new_athunk(Box::new(move |h| {
             h.add_edge(r2);
             h.add_edge(a1);
+            h.add_edge(a2);
             (h.compute(r2, &[]).unwrap()
                 + h.compute(a1, &[]).unwrap()
                 + h.compute(a2, &[]).unwrap())
@@ -151,9 +169,13 @@ mod tests {
 
         assert_eq!(Some(22.0), graph.compute(a3, &[1.0]));
         assert_eq!(Some(11.0), graph.compute(a3, &[2.0]));
+        assert_eq!(Some(22.0), graph.compute(a3, &[1.0]));
+        assert_eq!(Some(11.0), graph.compute(a3, &[2.0]));
 
         graph.update_aref(r2, 6.0);
 
+        assert_eq!(Some(14.0), graph.compute(a3, &[1.0]));
+        assert_eq!(Some(7.0), graph.compute(a3, &[2.0]));
         assert_eq!(Some(14.0), graph.compute(a3, &[1.0]));
         assert_eq!(Some(7.0), graph.compute(a3, &[2.0]));
     }
