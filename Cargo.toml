@@ -1,0 +1,8 @@
+[package]
+name    = "micro-adapton-rs"
+version = "0.1.0"
+authors = ["Jake Pittis <jakepittis@gmail.com>"]
+edition = "2018"
+
+[dependencies]
+slab = "0.4.2"
