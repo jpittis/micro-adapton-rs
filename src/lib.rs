@@ -167,6 +167,7 @@ mod tests {
                 / h.args[0]
         }));
 
+        assert_eq!(Some(10.0), graph.compute(a2, &[]));
         assert_eq!(Some(22.0), graph.compute(a3, &[1.0]));
         assert_eq!(Some(11.0), graph.compute(a3, &[2.0]));
         assert_eq!(Some(22.0), graph.compute(a3, &[1.0]));
@@ -174,6 +175,7 @@ mod tests {
 
         graph.update_aref(r2, 6.0);
 
+        assert_eq!(Some(10.0), graph.compute(a2, &[]));
         assert_eq!(Some(14.0), graph.compute(a3, &[1.0]));
         assert_eq!(Some(7.0), graph.compute(a3, &[2.0]));
         assert_eq!(Some(14.0), graph.compute(a3, &[1.0]));
