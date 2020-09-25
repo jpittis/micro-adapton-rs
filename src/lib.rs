@@ -2,6 +2,9 @@ use slab::Slab;
 use std::cell::RefCell;
 use std::collections::{HashMap, HashSet};
 
+// If anyone is reading this in the future, this is my first time using RefCell and my first time
+// working with Adaption so there could be some large flaws in here. :)
+
 #[derive(Default)]
 pub struct Graph {
     athunks: Slab<RefCell<AThunk>>,
@@ -34,6 +37,7 @@ impl Graph {
     }
 
     pub fn update_aref(&mut self, id: AThunkID, val: f64) {
+        // This scope is very necessary or else the double borrow_mut will cause RefCell to panic.
         {
             let mut aref = self.athunks.get(id.0).unwrap().borrow_mut();
             aref.thunk = Box::new(move |_: &mut Handle| val);
@@ -110,7 +114,9 @@ impl AThunk {
             }
         }
 
-        // Delete edge between self and sub_computations.
+        // Delete edge between self and sub_computations. I guess this is in-case the mutation
+        // changes the computation's subcomputations? Which I believe is current illegal in my
+        // implementation? Which makes this useless?
         for s in self.sub_computations.iter() {
             g.athunks
                 .get(s.0)
@@ -129,6 +135,9 @@ impl AThunk {
             graph: g,
         });
         self.result.insert(key, result);
+
+        // Recurse in-case the above computation invalidated this one...? Which implies a cycle and
+        // is therefore an infinite loop? I still don't get why the paper suggests this.
         self.compute(g, args)
     }
 }
