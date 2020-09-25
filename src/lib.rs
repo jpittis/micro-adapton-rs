@@ -53,14 +53,14 @@ impl Graph {
     }
 }
 
-pub struct Handle<'a, 'b, 'c> {
-    pub args: &'c [f64],
+pub struct Handle<'a> {
+    pub args: &'a [f64],
     id: AThunkID,
     sub_computations: &'a mut HashSet<AThunkID>,
-    graph: &'b Graph,
+    graph: &'a Graph,
 }
 
-impl<'a, 'b, 'c> Handle<'a, 'b, 'c> {
+impl<'a> Handle<'a> {
     pub fn add_edge(&mut self, sub_id: AThunkID) {
         self.graph
             .athunks
